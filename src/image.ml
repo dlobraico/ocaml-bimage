@@ -22,7 +22,10 @@ let equal a b = Data.equal a.data b.data
 
 let of_data color width height layout data =
   let channels = channels_of_color color in
-  if width * height * channels <> Data.length data then Error.exc `Invalid_shape
+  if width * height * channels <> Data.length data then (
+    Printf.printf "width = %i; height = %i; channels = %i; len(data) = %i\n"
+      width height channels (Data.length data);
+    Error.exc `Invalid_shape )
   else { width; height; color; layout; data }
 
 let like image =

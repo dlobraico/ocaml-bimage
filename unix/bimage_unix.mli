@@ -36,6 +36,12 @@ module Stb : sig
   val write_jpg :
     ?quality:int -> string -> (int, u8, 'c) Image.t -> (unit, Error.t) result
 
+  val write_jpg_f :
+    ?quality:int ->
+    f:((int, u8) Data.t -> int -> unit) ->
+    (int, u8, 'c) Image.t ->
+    (unit, Error.t) result
+
   val write_hdr : string -> (float, f32, 'c) Image.t -> (unit, Error.t) result
 
   val write : string -> ('a, 'b, 'c) Image.t -> (unit, Error.t) result

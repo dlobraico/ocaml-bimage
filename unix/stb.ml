@@ -18,6 +18,8 @@ external _stbi_write_png : unit -> unit = "stbi_write_png"
 
 external _stbi_write_jpg : unit -> unit = "stbi_write_jpg"
 
+external _stbi_write_jpg_to_func : unit -> unit = "stbi_write_jpg_to_func"
+
 external _stbi_write_hdr : unit -> unit = "stbi_write_hdr"
 
 let free = foreign "free" (ptr void @-> returning void)
@@ -132,6 +134,28 @@ let stbi_write_hdr =
   foreign ~release_runtime_lock:true "stbi_write_hdr"
     (string @-> int @-> int @-> int @-> ptr float @-> returning int)
 
+module Stbi_write_func =
+(val dynamic_funptr (ptr void @-> ptr int @-> int @-> returning void))
+
+type context = unit ptr
+
+let context : context typ = ptr void
+
+let stbi_write_png_to_func =
+  foreign "stbi_write_png_to_func"
+    ( Stbi_write_func.t @-> context @-> int @-> int @-> int @-> ptr int @-> int
+    @-> returning int )
+
+let stbi_write_jpg_to_func =
+  foreign "stbi_write_jpg_to_func"
+    ( Stbi_write_func.t @-> context @-> int @-> int @-> int @-> ptr int @-> int
+    @-> returning int )
+
+let stbi_write_hdr_to_func =
+  foreign "stbi_write_hdr_to_func"
+    ( Stbi_write_func.t @-> context @-> int @-> int @-> int @-> ptr float
+    @-> returning int )
+
 let write_png filename image =
   let image =
     match image.Bimage.Image.layout with
@@ -155,6 +179,30 @@ let write_jpg ?(quality = 95) filename image =
   if stbi_write_jpg filename width height channels ptr quality = 0 then
     Error (`Msg (Printf.sprintf "unable to load image: %s" filename))
   else Ok ()
+
+let write_jpg_f ?(quality = 95) ~f image =
+  let image =
+    match image.Bimage.Image.layout with
+    | Planar -> Bimage.Image.convert_layout Interleaved image
+    | Interleaved -> image
+  in
+  let width, height, channels = Bimage.Image.shape image in
+  let (ptr : int ptr) =
+    Ctypes.bigarray_start array1 (Bimage.Image.data image)
+  in
+  let write_f _context data size =
+    (* CR dlobraico: FIXME *)
+    f (bigarray_of_ptr array1 size (Bimage.Image.kind image) data) size
+  in
+  Stbi_write_func.with_fun write_f (fun write_f_fptr ->
+      let context = Ctypes.null in
+      if
+        stbi_write_jpg_to_func write_f_fptr context width height channels
+          (ptr : int ptr)
+          quality
+        = 0
+      then Error (`Msg (Printf.sprintf "unable to write image"))
+      else Ok ())
 
 let write_hdr filename image =
   let image =
